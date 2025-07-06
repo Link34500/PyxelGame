@@ -13,7 +13,7 @@ CURRENT_SCREEN = Screen.MAIN_MENU
 SOLID = []
 COINS = []
 PAGE = 0
-LEVEL = 0
+LEVEL = 1
 
 class Start:
     def __init__(self):
@@ -28,12 +28,12 @@ class Start:
                 if tile in SOLIDS_TILES:
                     SOLID.append(Objet(x*8,y*8,8,8))
                 if tile == COIN_TILES:
+                    print(f"Tile crée aux cooordonée : {x},{y}")
                     COINS.append(Coin(x*8,y*8,16,16))
+                    print(len(COINS))
                     
         self.cursor = Cursor(pyxel.mouse_x,pyxel.mouse_y,8,8)
         self.title = Text(text="Nuit du code",x=WIDTH/2,y=HEIGHT/6)
-        self.test_1 = Objet(6,6,8,8)
-        self.test_2 = Objet(0,0,8,8)
         self.button_play = Button(
             text="Play",
             x=WIDTH/2,
@@ -48,7 +48,7 @@ class Start:
         # Game Screen : 
         self.score = 0
         self.title_score = Text(text=f"Score : {self.score}",x=len(f"Score : {self.score}")*2,y=pyxel.FONT_HEIGHT/2,text_color=9)
-        self.player = Player(WIDTH/2,HEIGHT/2,16,16,6,3)
+        self.player = Player(24*8,8*8,16,16,6,3)
         # Game over Screen : 
         gap = 5
         self.gameover_title = Text("Perdu Looser",WIDTH/2,HEIGHT/6,7)
@@ -74,26 +74,41 @@ class Start:
                 button.un_hover()
         match CURRENT_SCREEN:
             case Screen.GAMESCREEN:
+                
                 self.player.update()
+
                 if self.player.x > WIDTH:
                     self.player.x = self.player.width
                     global PAGE
                     PAGE += 1
+                    for solid in SOLID:
+                        solid.x -= 128
+                    for coin in COINS:
+                        coin.x -= 128
+                for solid in SOLID:
+                    solid.y = solid.y - LEVEL*(128)
+                for coin in COINS:
+                    coin.y =  - LEVEL*128
                 if self.player.x < 0 and PAGE != 0:
                     self.player.x = WIDTH-self.player.width
                     PAGE -= 1
+                    for solid in SOLID:
+                        solid.x += 128
+                    for coin in COINS:
+                        coin.x += 128
+
+                # Efface la pièce de l'écran si le joueur la touche
                 for coin in COINS:
+                    
                     if self.player.hitbox.collision(coin):
-                        pyxel.tilemaps[0].pset(coin.x//8,coin.y//8,(0,0))
-                        pyxel.tilemaps[0].pset(coin.x//8+1,coin.y//8,(0,0))
-                        pyxel.tilemaps[0].pset(coin.x//8,coin.y//8+1,(0,0))
-                        pyxel.tilemaps[0].pset(coin.x//8+1,coin.y//8+1,(0,0))
+                        pyxel.tilemaps[0].pset((coin.x+PAGE*128)//8,(coin.y+LEVEL*128)//8,(0,0))
+                        pyxel.tilemaps[0].pset((coin.x+PAGE*128)//8+1,(coin.y+LEVEL*128)//8,(0,0))
+                        pyxel.tilemaps[0].pset((coin.x+PAGE*128)//8,(coin.y+LEVEL*128)//8+1,(0,0))
+                        pyxel.tilemaps[0].pset((coin.x+PAGE*128)//8+1,(coin.y+LEVEL*128)//8+1,(0,0))
                         COINS.remove(coin)
                         self.score += 100
                         self.title_score.text = f"Score : {self.score}"
-                for solid in SOLID:
-                    if solid.hitbox.collision(self.player):
-                        self.player.y -= 1
+
                 if pyxel.btn(pyxel.KEY_UP) and self.player.y > 0:
                     self.player.y -= 1
                 
@@ -110,10 +125,14 @@ class Start:
                 self.cursor.hitbox.draw()
             case Screen.GAMESCREEN:
                 pyxel.mouse(False)
-                pyxel.bltm(0,0,0,PAGE*64,LEVEL*16,WIDTH,HEIGHT)
+                pyxel.bltm(0,0,0,PAGE*WIDTH,LEVEL*HEIGHT,WIDTH,HEIGHT)
                 self.player.draw()
                 self.player.hitbox.draw()
                 self.title_score.draw()
+                for coin in COINS:
+                    coin.hitbox.draw()
+                for solid in SOLID:
+                    solid.hitbox.draw()
             case Screen.GAME_OVER:
                 Cursor.draw()
                 self.try_again_button.draw()
@@ -168,15 +187,15 @@ class Player(ImgObjet):
         self.armure = True
         self.velocity = 2
     def update(self):
-
+        print(f"{self.x},{self.y}")
         if pyxel.btn(pyxel.KEY_DOWN) and self.y < HEIGHT:
             self.y += self.velocity
+
         if pyxel.btn(pyxel.KEY_LEFT):
             self.x -= self.velocity
-            self.width = abs(self.width)
+            self.width = self.width
         if pyxel.btn(pyxel.KEY_RIGHT):
             self.x += self.velocity
-            self.width = -abs(self.width)
     
     def draw(self):
         return pyxel.blt(self.x,self.y,0,self.row,self.column,self.width,self.height,pyxel.COLOR_PURPLE)
@@ -214,11 +233,12 @@ class Hitbox:
     def __init__(self,objet:Objet):
         self.objet = objet
         self.hitbox_color = 8
+
     def draw(self):
-        pyxel.rectb(self.objet.x,self.objet.y,abs(self.objet.width),self.objet.height,self.hitbox_color)
+        pyxel.rectb(self.objet.x,self.objet.y,self.objet.width,self.objet.height,self.hitbox_color)
 
     def collision(self,collision:Objet):
-        return (self.objet.x < collision.x + abs(collision.width) and self.objet.x + abs(self.objet.width) > collision.x and self.objet.y < collision.y + collision.height and self.objet.y + self.objet.height > collision.y)
+        return (self.objet.x < collision.x + collision.width and self.objet.x + self.objet.width > collision.x and self.objet.y < collision.y + collision.height and self.objet.y + self.objet.height > collision.y)
 
 
 Start()
